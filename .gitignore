@@ -42,7 +42,7 @@ next-env.d.ts
 cache/
 out/
 broadcast/
-lib/
+/lib/
 
 # Private keys (NEVER COMMIT THESE!)
 *.key
