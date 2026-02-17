@@ -6,7 +6,7 @@ import { sendOtpEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
     try {
-        const { email, password, name, phone } = await req.json();
+        const { email, password, name, phone, role, companyName, gstNumber, matchPercentage } = await req.json();
 
         if (!email || !password || !name) {
             return NextResponse.json({ error: 'Email, password, and name are required' }, { status: 400 });
@@ -16,8 +16,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
         }
 
+        const userRole = (role === 'employer') ? 'employer' : 'worker';
         const hashed = bcrypt.hashSync(password, 10);
-        const user = store.createUser({ email, password: hashed, name, phone: phone || null });
+        const user = store.createUser({ email, password: hashed, name, phone: phone || null, role: userRole });
+
+        // If employer, create employer record
+        if (userRole === 'employer') {
+            store.createEmployer({
+                companyName: companyName || `${name}'s Company`,
+                gstNumber: gstNumber || null,
+                matchPercentage: matchPercentage || 50,
+                userId: user.id,
+            });
+        }
 
         const accessToken = generateAccessToken(user.id, user.role);
         const refreshToken = generateRefreshToken(user.id);

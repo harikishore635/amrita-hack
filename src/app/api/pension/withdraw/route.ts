@@ -13,10 +13,10 @@ export async function POST(req: NextRequest) {
     const user = store.findUserById(auth.userId);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-    // Calculate available balance
-    const total = store.sumContributions(auth.userId, ['contribution', 'match', 'yield']);
-    const withdrawn = store.sumContributions(auth.userId, ['withdrawal']);
-    const available = total.sum - withdrawn.sum;
+    // Calculate available balance (including transfers)
+    const total = store.sumContributions(auth.userId, ['contribution', 'match', 'yield', 'transfer_in']);
+    const outgoing = store.sumContributions(auth.userId, ['withdrawal', 'transfer_out']);
+    const available = total.sum - outgoing.sum;
 
     // Emergency withdrawal: max 50% of balance, 10% penalty
     const maxWithdraw = available * 0.5;
@@ -62,14 +62,14 @@ export async function GET(req: NextRequest) {
     const auth = getAuthUser(req);
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const total = store.sumContributions(auth.userId, ['contribution', 'match', 'yield']);
-    const withdrawn = store.sumContributions(auth.userId, ['withdrawal']);
-    const available = total.sum - withdrawn.sum;
+    const total = store.sumContributions(auth.userId, ['contribution', 'match', 'yield', 'transfer_in']);
+    const outgoing = store.sumContributions(auth.userId, ['withdrawal', 'transfer_out']);
+    const available = total.sum - outgoing.sum;
     const maxEmergency = available * 0.5;
 
     return NextResponse.json({
         totalBalance: Math.round(total.sum),
-        totalWithdrawn: Math.round(withdrawn.sum),
+        totalWithdrawn: Math.round(outgoing.sum),
         availableBalance: Math.round(available),
         maxEmergencyWithdrawal: Math.floor(maxEmergency),
         penaltyRate: 10,

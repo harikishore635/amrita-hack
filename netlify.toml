@@ -10,3 +10,12 @@
   JWT_SECRET = "pensionchain-jwt-secret-2026"
   JWT_REFRESH_SECRET = "pensionchain-refresh-secret-2026"
   NODE_VERSION = "18"
+  DEEPSEEK_API_KEY = "sk-4f7fcb498b4745509738434ef4118f9b"
+
+# Headers for CORS — allows concurrent sessions from any origin
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"

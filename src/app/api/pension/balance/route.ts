@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
     const matches = store.sumContributions(auth.userId, ['match']);
     const yields = store.sumContributions(auth.userId, ['yield']);
     const withdrawals = store.sumContributions(auth.userId, ['withdrawal']);
-    const balance = contribs.sum + matches.sum + yields.sum - withdrawals.sum;
+    const transfersIn = store.sumContributions(auth.userId, ['transfer_in']);
+    const transfersOut = store.sumContributions(auth.userId, ['transfer_out']);
+    const balance = contribs.sum + matches.sum + yields.sum + transfersIn.sum - withdrawals.sum - transfersOut.sum;
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -22,6 +24,8 @@ export async function GET(req: NextRequest) {
         balance: Math.round(balance), totalContributed: Math.round(contribs.sum),
         totalMatches: Math.round(matches.sum), totalYields: Math.round(yields.sum),
         totalWithdrawals: Math.round(withdrawals.sum),
+        totalTransfersIn: Math.round(transfersIn.sum),
+        totalTransfersOut: Math.round(transfersOut.sum),
         todayContribution, monthContribution, monthMatch,
     });
 }

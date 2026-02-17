@@ -119,6 +119,8 @@ export const userAPI = {
 
     updateProfile: (data: { name?: string; age?: number; monthlyIncome?: string; riskProfile?: string }) =>
         apiFetch('/api/user/profile', { method: 'PUT', body: JSON.stringify(data) }),
+
+    listUsers: () => apiFetch('/api/user/list'),
 };
 
 // ─────────────────────────────────────────────
@@ -144,6 +146,12 @@ export const pensionAPI = {
 
     switchJob: (newEmployerName: string, matchPercentage?: number) =>
         apiFetch('/api/pension/switch-job', { method: 'POST', body: JSON.stringify({ newEmployerName, matchPercentage }) }),
+
+    // Transfer between users
+    transfer: (toUserId: string, amount: number, note?: string) =>
+        apiFetch('/api/pension/transfer', { method: 'POST', body: JSON.stringify({ toUserId, amount, note }) }),
+
+    getTransfers: () => apiFetch('/api/pension/transfer'),
 };
 
 // ─────────────────────────────────────────────

@@ -293,6 +293,21 @@ class DataStore {
         return this.users.filter(u => u.currentEmployerId === employerId);
     }
 
+    // ── Transfer between users ──
+    addTransfer(d: { fromUserId: string; toUserId: string; amount: number; note?: string; txHash?: string }): Contribution {
+        // Debit from sender
+        const debit = this.addContribution({
+            userId: d.fromUserId, amount: d.amount, type: 'transfer_out',
+            paymentMethod: 'internal', txHash: d.txHash || `TXF${Date.now()}${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        });
+        // Credit to receiver
+        this.addContribution({
+            userId: d.toUserId, amount: d.amount, type: 'transfer_in',
+            paymentMethod: 'internal', txHash: debit.txHash,
+        });
+        return debit;
+    }
+
     // ── Seed ──
     seed() {
         if (this.seeded) return;
@@ -301,51 +316,96 @@ class DataStore {
         const pw = bcrypt.hashSync('worker123', 10);
         const epw = bcrypt.hashSync('employer123', 10);
 
-        // Employer user
-        const eu = this.createUser({
-            email: 'employer@abc.com', password: epw, name: 'Admin - ABC Construction',
+        // ═══════════════════════════════════════
+        // EMPLOYER 1: ABC Construction
+        // ═══════════════════════════════════════
+        const eu1 = this.createUser({
+            email: 'employer1@pensionchain.com', password: epw, name: 'Rajesh Sharma - ABC Construction',
             phone: '9000000001', phoneVerified: true, role: 'employer', age: 45,
         });
-        const emp = this.createEmployer({
+        const emp1 = this.createEmployer({
             companyName: 'ABC Construction Pvt Ltd', gstNumber: '29ABCDE1234F1Z5',
-            matchPercentage: 50, userId: eu.id,
+            matchPercentage: 50, userId: eu1.id,
         });
 
-        // Main worker
-        const w = this.createUser({
-            email: 'ramesh@pension.com', password: pw, name: 'Ramesh Kumar',
+        // ═══════════════════════════════════════
+        // EMPLOYER 2: XYZ Textiles
+        // ═══════════════════════════════════════
+        const eu2 = this.createUser({
+            email: 'employer2@pensionchain.com', password: epw, name: 'Priya Patel - XYZ Textiles',
+            phone: '9000000002', phoneVerified: true, role: 'employer', age: 38,
+        });
+        const emp2 = this.createEmployer({
+            companyName: 'XYZ Textiles Ltd', gstNumber: '27XYZAB5678G2H3',
+            matchPercentage: 60, userId: eu2.id,
+        });
+
+        // ═══════════════════════════════════════
+        // WORKER 1: Ramesh Kumar (under ABC Construction)
+        // ═══════════════════════════════════════
+        const w1 = this.createUser({
+            email: 'worker1@pensionchain.com', password: pw, name: 'Ramesh Kumar',
             phone: '9876543210', phoneVerified: true, role: 'worker', age: 36,
             monthlyIncome: '₹10,000 - ₹20,000', riskProfile: 'Balanced',
             walletAddress: '0xa6dF377eBf1AB4EaD308b5A3afCAae4e44175d81',
-            currentEmployerId: emp.id,
-            createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000), // joined ~13 months ago
+            currentEmployerId: emp1.id,
+            createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),
         });
 
-        // Additional workers
-        const extras = [
-            { name: 'Suresh Patel', email: 'suresh@pension.com', phone: '9876543211', age: 28 },
-            { name: 'Mohammed Ali', email: 'mohammed@pension.com', phone: '9876543212', age: 42 },
-            { name: 'Lakshmi Devi', email: 'lakshmi@pension.com', phone: '9876543213', age: 35 },
-            { name: 'Ravi Singh', email: 'ravi@pension.com', phone: '9876543214', age: 31 },
-        ];
-        for (const x of extras) {
-            this.createUser({
-                email: x.email, password: pw, name: x.name, phone: x.phone,
-                phoneVerified: true, role: 'worker', age: x.age,
-                monthlyIncome: '₹10,000 - ₹20,000', riskProfile: 'Balanced',
-                currentEmployerId: emp.id,
-            });
-        }
+        // ═══════════════════════════════════════
+        // WORKER 2: Lakshmi Devi (under XYZ Textiles)
+        // ═══════════════════════════════════════
+        const w2 = this.createUser({
+            email: 'worker2@pensionchain.com', password: pw, name: 'Lakshmi Devi',
+            phone: '9876543213', phoneVerified: true, role: 'worker', age: 35,
+            monthlyIncome: '₹15,000 - ₹25,000', riskProfile: 'Conservative',
+            walletAddress: '0xBb2C4dE538a9F12345678901234567890abcdEFa',
+            currentEmployerId: emp2.id,
+            createdAt: new Date(Date.now() - 300 * 24 * 60 * 60 * 1000),
+        });
 
-        // Seed a few recent contributions for demo purposes (last 3 days only)
+        // ── Seed contributions for Worker 1 (last 7 days) ──
         const now = Date.now();
-        for (let day = 2; day >= 0; day--) {
+        for (let day = 6; day >= 0; day--) {
             const date = new Date(now - day * 24 * 60 * 60 * 1000);
-            this.addContribution({ userId: w.id, amount: 10, type: 'contribution', paymentMethod: 'upi', createdAt: date });
-            this.addContribution({ userId: w.id, amount: 5, employerMatch: 5, type: 'match', paymentMethod: 'employer', employerId: emp.id, createdAt: date });
+            this.addContribution({ userId: w1.id, amount: 10, type: 'contribution', paymentMethod: 'upi', createdAt: date });
+            this.addContribution({ userId: w1.id, amount: 5, employerMatch: 5, type: 'match', paymentMethod: 'employer', employerId: emp1.id, createdAt: date });
+        }
+        // Monthly history for Worker 1
+        for (let month = 1; month <= 6; month++) {
+            const mDate = new Date(now - month * 30 * 24 * 60 * 60 * 1000);
+            this.addContribution({ userId: w1.id, amount: 300, type: 'contribution', paymentMethod: 'upi', createdAt: mDate });
+            this.addContribution({ userId: w1.id, amount: 150, employerMatch: 150, type: 'match', paymentMethod: 'employer', employerId: emp1.id, createdAt: mDate });
         }
 
-        console.log('🌱 Store seeded: ramesh@pension.com / worker123 | employer@abc.com / employer123');
+        // ── Seed contributions for Worker 2 (last 7 days) ──
+        for (let day = 6; day >= 0; day--) {
+            const date = new Date(now - day * 24 * 60 * 60 * 1000);
+            this.addContribution({ userId: w2.id, amount: 15, type: 'contribution', paymentMethod: 'upi', createdAt: date });
+            this.addContribution({ userId: w2.id, amount: 9, employerMatch: 9, type: 'match', paymentMethod: 'employer', employerId: emp2.id, createdAt: date });
+        }
+        // Monthly history for Worker 2
+        for (let month = 1; month <= 4; month++) {
+            const mDate = new Date(now - month * 30 * 24 * 60 * 60 * 1000);
+            this.addContribution({ userId: w2.id, amount: 450, type: 'contribution', paymentMethod: 'upi', createdAt: mDate });
+            this.addContribution({ userId: w2.id, amount: 270, employerMatch: 270, type: 'match', paymentMethod: 'employer', employerId: emp2.id, createdAt: mDate });
+        }
+
+        // ── Seed cross-user transfers (demo: worker1 → worker2 and back) ──
+        this.addTransfer({ fromUserId: w1.id, toUserId: w2.id, amount: 25, note: 'Shared savings' });
+        this.addTransfer({ fromUserId: w2.id, toUserId: w1.id, amount: 10, note: 'Return partial' });
+
+        // ── Employer bulk contributions (employers → their workers) ──
+        this.addContribution({ userId: w1.id, amount: 50, employerMatch: 50, type: 'match', paymentMethod: 'employer', employerId: emp1.id });
+        this.addContribution({ userId: w2.id, amount: 75, employerMatch: 75, type: 'match', paymentMethod: 'employer', employerId: emp2.id });
+
+        console.log('🌱 Store seeded with 4 users (2 workers + 2 employers):');
+        console.log('─────────────────────────────────────────────────');
+        console.log('  Worker 1:   worker1@pensionchain.com   / worker123');
+        console.log('  Worker 2:   worker2@pensionchain.com   / worker123');
+        console.log('  Employer 1: employer1@pensionchain.com / employer123');
+        console.log('  Employer 2: employer2@pensionchain.com / employer123');
+        console.log('─────────────────────────────────────────────────');
     }
 }
 

@@ -348,6 +348,13 @@ export default function Dashboard() {
                     <p className="text-gray-500 text-sm">View all transactions by employer</p>
                   </div>
                 </Link>
+                <Link href="/transfer" className="w-full p-4 rounded-xl bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 hover:border-green-500/30 transition-colors text-left flex items-center gap-3 block">
+                  <span className="text-2xl">💸</span>
+                  <div>
+                    <p className="text-white font-medium">Transfer Money</p>
+                    <p className="text-green-400 text-sm">Send to workers or employers</p>
+                  </div>
+                </Link>
                 <button onClick={handleSwitchJobOpen} className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3">
                   <span className="text-2xl">🔄</span>
                   <div>
