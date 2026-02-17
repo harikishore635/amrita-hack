@@ -107,6 +107,9 @@ export const authAPI = {
     verifyEmailOtp: (email: string, otp: string) =>
         apiFetch('/api/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp }) }),
 
+    verify2faOtp: (pendingToken: string, otp: string) =>
+        apiFetch('/api/auth/verify-otp', { method: 'POST', body: JSON.stringify({ pendingToken, otp }) }),
+
     logout: () =>
         apiFetch('/api/auth/logout', { method: 'DELETE', body: JSON.stringify({ refreshToken: getRefreshToken() }) }),
 };

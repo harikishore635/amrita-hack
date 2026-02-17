@@ -17,11 +17,19 @@ interface User {
     walletAddress?: string
 }
 
+interface LoginResult {
+    step: 'otp_required' | 'login_complete'
+    pendingToken?: string
+    email?: string
+    message?: string
+}
+
 interface AuthContextType {
     user: User | null
     isLoading: boolean
     isAuthenticated: boolean
-    login: (email: string, password: string) => Promise<void>
+    login: (email: string, password: string) => Promise<LoginResult>
+    verify2fa: (pendingToken: string, otp: string) => Promise<void>
     register: (data: { email: string; password: string; name: string; phone?: string }) => Promise<void>
     logout: () => Promise<void>
     updateUser: (user: User) => void
@@ -43,8 +51,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false)
     }, [])
 
-    const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string): Promise<LoginResult> => {
         const response = await authAPI.login({ email, password })
+
+        // 2FA flow: login API now returns step='otp_required' with a pendingToken
+        if (response.step === 'otp_required') {
+            return {
+                step: 'otp_required',
+                pendingToken: response.pendingToken,
+                email: response.email,
+                message: response.message,
+            }
+        }
+
+        // Direct login (fallback, shouldn't happen with 2FA enabled)
+        setTokens(response.accessToken, response.refreshToken)
+        setUser(response.user)
+        setUserState(response.user)
+        return { step: 'login_complete' }
+    }
+
+    const verify2fa = async (pendingToken: string, otp: string) => {
+        const response = await authAPI.verify2faOtp(pendingToken, otp)
         setTokens(response.accessToken, response.refreshToken)
         setUser(response.user)
         setUserState(response.user)
@@ -80,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isLoading,
                 isAuthenticated: !!user,
                 login,
+                verify2fa,
                 register,
                 logout,
                 updateUser,

@@ -80,6 +80,9 @@ backend/prisma/dev.db-journal
 # Persistent store data
 .data/
 
+# OTP files (2FA test files)
+.otp/
+
 # Temp files
 _wallet.txt
 _address.txt
