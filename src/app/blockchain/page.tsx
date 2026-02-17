@@ -113,7 +113,13 @@ export default function BlockchainPage() {
         try {
             const result = await pensionAPI.withdraw(amt, withdrawReason)
             setWithdrawResult(result)
+            // Refresh all data including balance and withdrawal info
             await fetchData()
+            // Re-fetch withdrawal info to update modal balance display
+            try {
+                const wInfo = await pensionAPI.getWithdrawInfo()
+                setWithdrawInfo(wInfo)
+            } catch {}
             setTimeout(() => {
                 setShowWithdrawModal(false)
                 setWithdrawResult(null)
@@ -777,14 +783,15 @@ export default function BlockchainPage() {
                                     <select
                                         value={withdrawReason}
                                         onChange={(e) => setWithdrawReason(e.target.value)}
-                                        className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-amber-500/50 focus:outline-none transition-colors"
+                                        className="w-full p-3 rounded-xl bg-[#1a1a2e] border border-white/10 text-white focus:border-amber-500/50 focus:outline-none transition-colors appearance-none"
+                                        style={{ colorScheme: 'dark' }}
                                     >
-                                        <option value="">Select reason...</option>
-                                        <option value="medical">Medical Emergency</option>
-                                        <option value="family">Family Emergency</option>
-                                        <option value="housing">Housing Needs</option>
-                                        <option value="education">Education</option>
-                                        <option value="other">Other</option>
+                                        <option value="" className="bg-[#1a1a2e] text-gray-400">Select reason...</option>
+                                        <option value="medical" className="bg-[#1a1a2e] text-white">Medical Emergency</option>
+                                        <option value="family" className="bg-[#1a1a2e] text-white">Family Emergency</option>
+                                        <option value="housing" className="bg-[#1a1a2e] text-white">Housing Needs</option>
+                                        <option value="education" className="bg-[#1a1a2e] text-white">Education</option>
+                                        <option value="other" className="bg-[#1a1a2e] text-white">Other</option>
                                     </select>
                                 </div>
 

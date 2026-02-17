@@ -226,11 +226,21 @@ export default function Login() {
           </div>
 
           {/* Demo Accounts Info */}
-          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-2">
-            <p className="text-blue-400 font-medium text-sm">Demo Accounts</p>
-            <div className="text-gray-400 text-xs space-y-1">
-              <p>👷 Worker: <span className="text-white">ramesh@pension.com</span> / <span className="text-white">worker123</span></p>
-              <p>🏢 Employer: <span className="text-white">employer@abc.com</span> / <span className="text-white">employer123</span></p>
+          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-3">
+            <p className="text-blue-400 font-medium text-sm">Demo Accounts (click to fill)</p>
+            <div className="text-gray-400 text-xs space-y-2">
+              <button onClick={() => { setEmail('worker1@pensionchain.com'); setPassword('worker123'); setMethod('email'); }} className="w-full text-left p-2 rounded-lg hover:bg-white/5 transition">
+                <p>👷 Worker 1: <span className="text-white">worker1@pensionchain.com</span> / <span className="text-white">worker123</span></p>
+              </button>
+              <button onClick={() => { setEmail('worker2@pensionchain.com'); setPassword('worker123'); setMethod('email'); }} className="w-full text-left p-2 rounded-lg hover:bg-white/5 transition">
+                <p>👷 Worker 2: <span className="text-white">worker2@pensionchain.com</span> / <span className="text-white">worker123</span></p>
+              </button>
+              <button onClick={() => { setEmail('employer1@pensionchain.com'); setPassword('employer123'); setMethod('email'); }} className="w-full text-left p-2 rounded-lg hover:bg-white/5 transition">
+                <p>🏢 Employer 1: <span className="text-white">employer1@pensionchain.com</span> / <span className="text-white">employer123</span></p>
+              </button>
+              <button onClick={() => { setEmail('employer2@pensionchain.com'); setPassword('employer123'); setMethod('email'); }} className="w-full text-left p-2 rounded-lg hover:bg-white/5 transition">
+                <p>🏢 Employer 2: <span className="text-white">employer2@pensionchain.com</span> / <span className="text-white">employer123</span></p>
+              </button>
             </div>
           </div>
         </div>

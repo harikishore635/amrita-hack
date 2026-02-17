@@ -124,6 +124,15 @@ body {
          transition-all duration-300;
 }
 
+/* Dark select dropdown — ensures options are visible on dark backgrounds */
+select option {
+  background-color: #1a1a2e;
+  color: #ffffff;
+}
+select {
+  color-scheme: dark;
+}
+
 /* Animation classes */
 .animate-in {
   animation: slideUp 0.5s ease-out forwards;
