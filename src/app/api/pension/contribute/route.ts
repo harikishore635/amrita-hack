@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { store } from '@/lib/store';
 import { getAuthUser } from '@/lib/server-auth';
+import { contribute as blockchainContribute, isBlockchainConfigured } from '@/lib/blockchain';
 
 export async function POST(req: NextRequest) {
     const auth = getAuthUser(req);
@@ -12,7 +13,30 @@ export async function POST(req: NextRequest) {
     const user = store.findUserById(auth.userId);
     const employer = user?.currentEmployerId ? store.findEmployerById(user.currentEmployerId) : null;
 
-    const contribution = store.addContribution({ userId: auth.userId, amount: parseFloat(amount), type: 'contribution', paymentMethod });
+    // ── On-chain transaction ──
+    let blockchainResult = null;
+    let txHash: string | null = null;
+    let blockNumber: number | null = null;
+
+    if (isBlockchainConfigured()) {
+        try {
+            blockchainResult = await blockchainContribute(auth.userId, parseFloat(amount));
+            txHash = blockchainResult.txHash;
+            blockNumber = blockchainResult.blockNumber;
+        } catch (err: any) {
+            console.error('[Contribute] Blockchain transaction failed:', err.message);
+            // Continue with in-memory store even if blockchain fails
+        }
+    }
+
+    // ── In-memory store (app state) ──
+    const contribution = store.addContribution({
+        userId: auth.userId,
+        amount: parseFloat(amount),
+        type: 'contribution',
+        paymentMethod,
+        txHash,
+    });
 
     let matchContribution = null;
     if (employer) {
@@ -20,6 +44,7 @@ export async function POST(req: NextRequest) {
         matchContribution = store.addContribution({
             userId: auth.userId, amount: matchAmt, employerMatch: matchAmt,
             type: 'match', paymentMethod: 'employer', employerId: employer.id,
+            txHash: txHash ? `MATCH-${txHash.slice(0, 20)}` : null,
         });
     }
 
@@ -27,8 +52,17 @@ export async function POST(req: NextRequest) {
     store.addContribution({ userId: auth.userId, amount: yieldAmt, type: 'yield', paymentMethod: 'defi' });
 
     return NextResponse.json({
-        message: 'Contribution successful!', contribution,
+        message: 'Contribution successful!',
+        contribution,
         employerMatch: matchContribution,
         totalAdded: parseFloat(amount) + (matchContribution?.amount || 0) + yieldAmt,
+        blockchain: blockchainResult ? {
+            txHash: blockchainResult.txHash,
+            blockNumber: blockchainResult.blockNumber,
+            gasUsed: blockchainResult.gasUsed,
+            amountMatic: blockchainResult.amountMatic,
+            explorerUrl: blockchainResult.explorerUrl,
+            network: 'Polygon Amoy Testnet',
+        } : null,
     }, { status: 201 });
 }

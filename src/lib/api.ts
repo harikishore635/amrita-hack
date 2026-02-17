@@ -98,8 +98,14 @@ export const authAPI = {
     sendOtp: (phone: string) =>
         apiFetch('/api/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
 
+    sendEmailOtp: (email: string) =>
+        apiFetch('/api/auth/send-otp', { method: 'POST', body: JSON.stringify({ email }) }),
+
     verifyOtp: (phone: string, otp: string) =>
         apiFetch('/api/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+
+    verifyEmailOtp: (email: string, otp: string) =>
+        apiFetch('/api/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp }) }),
 
     logout: () =>
         apiFetch('/api/auth/logout', { method: 'DELETE', body: JSON.stringify({ refreshToken: getRefreshToken() }) }),

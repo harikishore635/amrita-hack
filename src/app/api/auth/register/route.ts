@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { store } from '@/lib/store';
 import { generateAccessToken, generateRefreshToken } from '@/lib/server-auth';
+import { sendOtpEmail } from '@/lib/email';
 
 export async function POST(req: NextRequest) {
     try {
@@ -22,16 +23,24 @@ export async function POST(req: NextRequest) {
         const refreshToken = generateRefreshToken(user.id);
         store.storeToken(refreshToken, user.id);
 
+        // Send OTP to email for verification
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        store.createOtp(email, otp);
+        const emailResult = await sendOtpEmail(email, otp);
+        console.log(`📧 OTP for ${email}: ${otp}`);
+
+        // Also send phone OTP if phone provided
         if (phone) {
-            const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            store.createOtp(phone, otp);
-            console.log(`📱 OTP for ${phone}: ${otp}`);
+            const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
+            store.createOtp(phone, phoneOtp);
+            console.log(`📱 OTP for ${phone}: ${phoneOtp}`);
         }
 
         return NextResponse.json({
-            message: 'Registration successful',
+            message: 'Registration successful. Verification OTP sent to your email.',
             accessToken, refreshToken,
             user: { id: user.id, email: user.email, name: user.name, phone: user.phone, phoneVerified: user.phoneVerified, role: user.role },
+            ...(emailResult.previewUrl ? { emailPreviewUrl: emailResult.previewUrl } : {}),
         }, { status: 201 });
     } catch (e: any) {
         return NextResponse.json({ error: 'Registration failed' }, { status: 500 });

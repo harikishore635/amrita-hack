@@ -50,13 +50,15 @@ export default function Dashboard() {
     setContributionSuccess('')
     try {
       const result = await paymentAPI.simulate(selectedAmount)
-      setContributionSuccess(`₹${selectedAmount} contributed! ${result.transaction.employerMatch > 0 ? `Employer added ₹${result.transaction.employerMatch}` : ''}`)
+      const matchMsg = result.transaction.employerMatch > 0 ? ` Employer added ₹${result.transaction.employerMatch}` : ''
+      const chainMsg = result.blockchain?.txHash ? ` | On-chain: ${result.blockchain.txHash.slice(0, 10)}...` : ''
+      setContributionSuccess(`₹${selectedAmount} contributed!${matchMsg}${chainMsg}`)
       // Refresh data
       await fetchData()
       setTimeout(() => {
         setShowContributeModal(false)
         setContributionSuccess('')
-      }, 2000)
+      }, 3000)
     } catch (err: any) {
       console.error('Contribution failed:', err)
     } finally {

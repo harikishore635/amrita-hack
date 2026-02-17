@@ -25,6 +25,7 @@ export default function BlockchainPage() {
     const [creatingWallet, setCreatingWallet] = useState(false)
     const [selectedTx, setSelectedTx] = useState<BlockEntry | null>(null)
     const [viewMode, setViewMode] = useState<'ledger' | 'blocks'>('blocks')
+    const [blockchainHealth, setBlockchainHealth] = useState<any>(null)
 
     const { isAuthenticated } = useAuth()
     const router = useRouter()
@@ -36,6 +37,13 @@ export default function BlockchainPage() {
 
     const fetchData = async () => {
         try {
+            // Fetch blockchain health status
+            try {
+                const healthRes = await fetch('/api/blockchain/health')
+                const healthData = await healthRes.json()
+                setBlockchainHealth(healthData)
+            } catch { setBlockchainHealth(null) }
+
             const [profileRes, contribRes] = await Promise.all([
                 userAPI.getProfile(),
                 pensionAPI.getContributions(1, 100),
@@ -80,16 +88,25 @@ export default function BlockchainPage() {
         switch (type) { case 'contribution': return '💰'; case 'match': return '🏢'; case 'yield': return '📈'; case 'withdrawal': return '💸'; default: return '🔗' }
     }
 
-    const generateBlockHash = (tx: BlockEntry) => {
+    const getDisplayHash = (tx: BlockEntry) => {
+        // Use real txHash if available (starts with 0x and is a proper hash)
+        if (tx.txHash && tx.txHash.startsWith('0x') && tx.txHash.length >= 42) {
+            return tx.txHash
+        }
+        // Fallback: generate a simulated hash for display
         const base = tx.txHash || tx.id
         return '0x' + Array.from(base).map((c, i) => ((c.charCodeAt(0) * (i + 7)) % 256).toString(16).padStart(2, '0')).join('').slice(0, 64)
+    }
+
+    const isRealHash = (tx: BlockEntry) => {
+        return tx.txHash && tx.txHash.startsWith('0x') && tx.txHash.length >= 42
     }
 
     if (loading) {
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
                 <div className="text-center">
-                    <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center animate-pulse mb-4">
+                    <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center animate-pulse mb-4">
                         <span className="text-3xl">⛓️</span>
                     </div>
                     <p className="text-gray-400">Loading blockchain data...</p>
@@ -110,24 +127,24 @@ export default function BlockchainPage() {
                             </svg>
                         </Link>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                                 <span className="text-xl">⛓️</span>
                             </div>
                             <div>
                                 <h1 className="text-white font-bold text-lg">Blockchain Ledger</h1>
-                                <p className="text-purple-400 text-xs flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                                    Polygon Amoy Testnet
+                                <p className="text-amber-400 text-xs flex items-center gap-1">
+                                    <span className={`w-2 h-2 rounded-full ${blockchainHealth?.isLive ? 'bg-green-500' : 'bg-amber-500'} animate-pulse`} />
+                                    Polygon Amoy Testnet {blockchainHealth?.isLive ? '(Live)' : '(Simulated)'}
                                 </p>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="flex gap-1 p-1 bg-white/5 rounded-lg">
-                            <button onClick={() => setViewMode('blocks')} className={`px-4 py-2 rounded-md text-sm transition-all ${viewMode === 'blocks' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>
+                            <button onClick={() => setViewMode('blocks')} className={`px-4 py-2 rounded-md text-sm transition-all ${viewMode === 'blocks' ? 'bg-amber-500 text-black font-semibold' : 'text-gray-400 hover:text-white'}`}>
                                 ⬡ Blocks
                             </button>
-                            <button onClick={() => setViewMode('ledger')} className={`px-4 py-2 rounded-md text-sm transition-all ${viewMode === 'ledger' ? 'bg-purple-500 text-white' : 'text-gray-400 hover:text-white'}`}>
+                            <button onClick={() => setViewMode('ledger')} className={`px-4 py-2 rounded-md text-sm transition-all ${viewMode === 'ledger' ? 'bg-amber-500 text-black font-semibold' : 'text-gray-400 hover:text-white'}`}>
                                 📋 Ledger
                             </button>
                         </div>
@@ -137,14 +154,14 @@ export default function BlockchainPage() {
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Network Banner */}
-                <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-purple-900/40 border border-purple-500/20 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgxNDcsMTAyLDIzNCwwLjEpIi8+PC9zdmc+')] opacity-50" />
+                <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-amber-900/20 via-black to-amber-900/20 border border-amber-500/20 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNDUsMTU4LDExLDAuMSkiLz48L3N2Zz4=')] opacity-50" />
                     <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <div className="flex items-center gap-3 mb-2">
                                 <img src="https://cryptologos.cc/logos/polygon-matic-logo.svg?v=035" alt="Polygon" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                 <h2 className="text-2xl font-bold text-white">Polygon Network</h2>
-                                <span className="px-3 py-1 rounded-full text-xs bg-green-500/20 text-green-400 border border-green-500/30">AMOY TESTNET</span>
+                                <span className="px-3 py-1 rounded-full text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30">AMOY TESTNET</span>
                             </div>
                             <p className="text-gray-400 text-sm">All pension transactions are recorded on the Polygon blockchain for transparency and immutability</p>
                         </div>
@@ -168,12 +185,12 @@ export default function BlockchainPage() {
                 {/* Wallet Card */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     <div className="lg:col-span-2 card-highlight relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-3xl" />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl" />
                         <div className="relative">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-bold text-white">Your Wallet</h3>
                                 {wallet && (
-                                    <a href={`https://amoy.polygonscan.com/address/${wallet.walletAddress}`} target="_blank" rel="noopener noreferrer" className="text-purple-400 text-sm hover:underline flex items-center gap-1">
+                                    <a href={`https://amoy.polygonscan.com/address/${wallet.walletAddress}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 text-sm hover:underline flex items-center gap-1">
                                         View on PolygonScan ↗
                                     </a>
                                 )}
@@ -199,7 +216,7 @@ export default function BlockchainPage() {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                                             <p className="text-gray-500 text-xs">On-Chain Balance</p>
-                                            <p className="text-2xl font-bold text-purple-400">{wallet?.onChainBalance || '0 MATIC'}</p>
+                                            <p className="text-2xl font-bold text-amber-400">{wallet?.onChainBalance || '0 MATIC'}</p>
                                         </div>
                                         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                                             <p className="text-gray-500 text-xs">App Balance</p>
@@ -234,13 +251,19 @@ export default function BlockchainPage() {
                         </div>
                         <div className="card">
                             <p className="text-gray-500 text-xs mb-1">Network</p>
-                            <p className="text-lg font-bold text-purple-400">Polygon Amoy</p>
+                            <p className="text-lg font-bold text-amber-400">Polygon Amoy</p>
                             <p className="text-gray-500 text-xs mt-1">EVM Compatible · Low Gas</p>
                         </div>
                         <div className="card">
                             <p className="text-gray-500 text-xs mb-1">Smart Contract</p>
-                            <p className="text-sm font-mono text-amber-400">PensionVault.sol</p>
-                            <p className="text-gray-500 text-xs mt-1">Contributions · Matching · Withdrawals</p>
+                            {blockchainHealth?.contractAddress ? (
+                                <a href={`https://amoy.polygonscan.com/address/${blockchainHealth.contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-sm font-mono text-amber-400 hover:underline block truncate">
+                                    {blockchainHealth.contractAddress.slice(0, 10)}...{blockchainHealth.contractAddress.slice(-6)} ↗
+                                </a>
+                            ) : (
+                                <p className="text-sm font-mono text-amber-400">PensionVault.sol</p>
+                            )}
+                            <p className="text-gray-500 text-xs mt-1">{blockchainHealth?.contractBalance || 'Contributions · Matching · Withdrawals'}</p>
                         </div>
                     </div>
                 </div>
@@ -255,8 +278,14 @@ export default function BlockchainPage() {
                             </div>
                             <div className="space-y-4">
                                 <div className="p-4 rounded-xl bg-black/50 border border-white/10">
-                                    <p className="text-gray-500 text-xs mb-1">Block Hash</p>
-                                    <p className="text-purple-400 font-mono text-xs break-all">{generateBlockHash(selectedTx)}</p>
+                                    <p className="text-gray-500 text-xs mb-1">{isRealHash(selectedTx) ? 'Transaction Hash (On-Chain)' : 'Block Hash (Simulated)'}</p>
+                                    {isRealHash(selectedTx) ? (
+                                        <a href={`https://amoy.polygonscan.com/tx/${selectedTx.txHash}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 font-mono text-xs break-all hover:underline">
+                                            {selectedTx.txHash} ↗
+                                        </a>
+                                    ) : (
+                                        <p className="text-amber-400 font-mono text-xs break-all">{getDisplayHash(selectedTx)}</p>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -275,24 +304,27 @@ export default function BlockchainPage() {
                                     </div>
                                     <div>
                                         <p className="text-gray-500 text-xs">Status</p>
-                                        <p className="text-green-400 text-sm flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-green-500" /> Confirmed
+                                        <p className={`text-sm flex items-center gap-1 ${isRealHash(selectedTx) ? 'text-green-400' : 'text-amber-400'}`}>
+                                            <span className={`w-2 h-2 rounded-full ${isRealHash(selectedTx) ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                            {isRealHash(selectedTx) ? 'Confirmed (On-Chain)' : 'Recorded (App)'}
                                         </p>
                                     </div>
                                     <div className="col-span-2">
                                         <p className="text-gray-500 text-xs">Timestamp</p>
                                         <p className="text-gray-300 text-sm">{new Date(selectedTx.createdAt).toLocaleString()}</p>
                                     </div>
-                                    {selectedTx.txHash && (
+                                    {selectedTx.txHash && !isRealHash(selectedTx) && (
                                         <div className="col-span-2">
-                                            <p className="text-gray-500 text-xs">Transaction Hash</p>
-                                            <p className="text-purple-400 font-mono text-xs break-all">{selectedTx.txHash}</p>
+                                            <p className="text-gray-500 text-xs">Reference ID</p>
+                                            <p className="text-amber-400 font-mono text-xs break-all">{selectedTx.txHash}</p>
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-                                    <p className="text-purple-400 text-xs">
-                                        🔒 This transaction is immutably recorded on the Polygon blockchain. It cannot be altered or deleted.
+                                <div className={`p-3 rounded-xl ${isRealHash(selectedTx) ? 'bg-green-500/10 border border-green-500/20' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+                                    <p className={`text-xs ${isRealHash(selectedTx) ? 'text-green-400' : 'text-amber-400'}`}>
+                                        {isRealHash(selectedTx)
+                                            ? '🔒 This transaction is immutably recorded on the Polygon blockchain. It cannot be altered or deleted.'
+                                            : '📝 This transaction is recorded in the app. Deploy the smart contract to record on-chain.'}
                                     </p>
                                 </div>
                             </div>
@@ -311,7 +343,7 @@ export default function BlockchainPage() {
                         {/* Chain visualization */}
                         <div className="relative">
                             {/* Vertical line */}
-                            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-500 via-indigo-500 to-purple-500/20" />
+                            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gradient-to-b from-amber-500 via-amber-600 to-amber-500/20" />
 
                             <div className="space-y-4">
                                 {/* Genesis block */}
@@ -337,24 +369,34 @@ export default function BlockchainPage() {
                                         </div>
 
                                         {/* Block content */}
-                                        <div className={`flex-1 p-4 rounded-xl border transition-all group-hover:border-purple-500/30 group-hover:bg-purple-500/5 ${index % 2 === 0 ? 'bg-white/[0.02] border-white/5' : 'bg-white/[0.04] border-white/10'}`}>
+                                        <div className={`flex-1 p-4 rounded-xl border transition-all group-hover:border-amber-500/30 group-hover:bg-amber-500/5 ${index % 2 === 0 ? 'bg-white/[0.02] border-white/5' : 'bg-white/[0.04] border-white/10'}`}>
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-md text-xs font-medium border ${getTypeColor(tx.type)}`}>
                                                         {tx.type.toUpperCase()}
                                                     </span>
                                                     <span className="text-white font-bold">₹{tx.amount}</span>
+                                                    {isRealHash(tx) && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-500/20 text-green-400 border border-green-500/30">ON-CHAIN</span>
+                                                    )}
                                                 </div>
                                                 <span className="text-xs text-gray-500 font-mono">Block #{index + 1}</span>
                                             </div>
 
                                             <div className="flex items-center gap-4 text-xs text-gray-500">
-                                                <span className="font-mono">{generateBlockHash(tx).slice(0, 18)}...</span>
+                                                {isRealHash(tx) ? (
+                                                    <a href={`https://amoy.polygonscan.com/tx/${tx.txHash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-amber-400 hover:underline">
+                                                        {tx.txHash!.slice(0, 18)}... ↗
+                                                    </a>
+                                                ) : (
+                                                    <span className="font-mono">{getDisplayHash(tx).slice(0, 18)}...</span>
+                                                )}
                                                 <span>•</span>
                                                 <span>{new Date(tx.createdAt).toLocaleDateString()}</span>
                                                 <span>•</span>
-                                                <span className="text-green-400 flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Confirmed
+                                                <span className={`flex items-center gap-1 ${isRealHash(tx) ? 'text-green-400' : 'text-amber-400'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isRealHash(tx) ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                                    {isRealHash(tx) ? 'Confirmed' : 'Recorded'}
                                                 </span>
                                             </div>
                                         </div>
@@ -399,7 +441,15 @@ export default function BlockchainPage() {
                                     {transactions.slice(0, 50).map((tx, index) => (
                                         <tr key={tx.id} className="border-b border-white/5 hover:bg-white/[0.03] cursor-pointer transition-colors" onClick={() => setSelectedTx(tx)}>
                                             <td className="px-6 py-4 text-gray-400 text-sm font-mono">#{index + 1}</td>
-                                            <td className="px-6 py-4 text-purple-400 text-xs font-mono">{generateBlockHash(tx).slice(0, 14)}...</td>
+                                            <td className="px-6 py-4 text-xs font-mono">
+                                                {isRealHash(tx) ? (
+                                                    <a href={`https://amoy.polygonscan.com/tx/${tx.txHash}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">
+                                                        {tx.txHash!.slice(0, 14)}... ↗
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-gray-500">{getDisplayHash(tx).slice(0, 14)}...</span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <span className={`px-2 py-1 rounded-md text-xs font-medium border ${getTypeColor(tx.type)}`}>
                                                     {getTypeIcon(tx.type)} {tx.type}
@@ -408,8 +458,9 @@ export default function BlockchainPage() {
                                             <td className="px-6 py-4 text-white font-medium text-right">₹{tx.amount}</td>
                                             <td className="px-6 py-4 text-gray-400 text-sm uppercase text-xs">{tx.paymentMethod}</td>
                                             <td className="px-6 py-4">
-                                                <span className="text-green-400 text-xs flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Confirmed
+                                                <span className={`text-xs flex items-center gap-1 ${isRealHash(tx) ? 'text-green-400' : 'text-amber-400'}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isRealHash(tx) ? 'bg-green-500' : 'bg-amber-500'}`} />
+                                                    {isRealHash(tx) ? 'Confirmed' : 'Recorded'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-gray-500 text-xs">{new Date(tx.createdAt).toLocaleString()}</td>
@@ -431,7 +482,7 @@ export default function BlockchainPage() {
                         </div>
                         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                             <p className="text-gray-500 text-xs">Network</p>
-                            <p className="text-purple-400 text-sm">Polygon Amoy</p>
+                            <p className="text-amber-400 text-sm">Polygon Amoy</p>
                         </div>
                         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                             <p className="text-gray-500 text-xs">Solidity Version</p>

@@ -128,22 +128,25 @@ class DataStore {
     }
 
     // ── OTP ──
-    createOtp(phone: string, otp: string) {
+    createOtp(identifier: string, otp: string) {
         this.otps.push({
-            id: this.uid(), phone, otp,
+            id: this.uid(), phone: identifier, otp,
             expiresAt: new Date(Date.now() + 10 * 60 * 1000),
             verified: false, createdAt: new Date(),
         });
     }
 
-    verifyOtp(phone: string, otp: string): boolean {
+    verifyOtp(identifier: string, otp: string): boolean {
         const rec = this.otps.filter(o =>
-            o.phone === phone && o.otp === otp && !o.verified && o.expiresAt > new Date()
+            o.phone === identifier && o.otp === otp && !o.verified && o.expiresAt > new Date()
         ).pop();
         if (!rec) return false;
         rec.verified = true;
-        const user = this.findUserByPhone(phone);
-        if (user) user.phoneVerified = true;
+        // Check if identifier is email or phone
+        const userByPhone = this.findUserByPhone(identifier);
+        const userByEmail = this.findUserByEmail(identifier);
+        if (userByPhone) userByPhone.phoneVerified = true;
+        if (userByEmail) userByEmail.phoneVerified = true;
         return true;
     }
 

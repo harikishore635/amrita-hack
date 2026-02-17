@@ -44,21 +44,17 @@ export default function Signup() {
   }
 
   const handleStep2SendOtp = async () => {
-    if (!formData.phone) {
-      setError('Phone number is required')
-      return
-    }
     setError('')
     setLoading(true)
     try {
       // Register the user first
-      await register({
+      const result = await register({
         email: formData.email,
         password: formData.password,
         name: formData.name || formData.email.split('@')[0],
-        phone: formData.phone,
+        phone: formData.phone || undefined,
       })
-      setSuccess('Account created! OTP sent to your phone (check backend console)')
+      setSuccess('Account created! Verification OTP sent to your email.')
       setStep(3)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
@@ -75,8 +71,8 @@ export default function Signup() {
     setError('')
     setLoading(true)
     try {
-      await authAPI.verifyOtp(formData.phone, formData.otp)
-      setSuccess('Phone verified!')
+      await authAPI.verifyEmailOtp(formData.email, formData.otp)
+      setSuccess('Email verified!')
       setStep(4)
     } catch (err: any) {
       setError(err.message || 'Invalid OTP')
@@ -205,8 +201,8 @@ export default function Signup() {
           {step === 2 && (
             <div className="space-y-4">
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Verify your phone</h1>
-                <p className="text-gray-400">We&apos;ll send you a verification code</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Phone number (optional)</h1>
+                <p className="text-gray-400">Add your phone for additional security</p>
               </div>
 
               <div>
@@ -230,7 +226,7 @@ export default function Signup() {
                 disabled={loading}
                 className="w-full btn-gold disabled:opacity-50"
               >
-                {loading ? 'Creating Account...' : 'Create Account & Send OTP'}
+                {loading ? 'Creating Account...' : 'Create Account & Send Email OTP'}
               </button>
 
               <button onClick={() => setStep(1)} className="w-full text-gray-500 text-sm hover:text-white">
@@ -243,8 +239,8 @@ export default function Signup() {
           {step === 3 && (
             <div className="space-y-4">
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Verify OTP</h1>
-                <p className="text-gray-400">Enter the 6-digit code sent to +91 {formData.phone}</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Verify Email</h1>
+                <p className="text-gray-400">Enter the 6-digit code sent to {formData.email}</p>
               </div>
 
               <div>
@@ -258,7 +254,7 @@ export default function Signup() {
                   onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
                 />
                 <p className="text-gray-500 text-xs mt-2 text-center">
-                  Check backend console for OTP code
+                  Check your email inbox for the verification code
                 </p>
               </div>
 
@@ -271,10 +267,15 @@ export default function Signup() {
               </button>
 
               <button
-                onClick={() => setStep(4)}
-                className="w-full text-gray-500 text-sm hover:text-white"
+                onClick={async () => {
+                  try {
+                    await authAPI.sendEmailOtp(formData.email)
+                    setSuccess('New OTP sent to your email!')
+                  } catch { setError('Failed to resend OTP') }
+                }}
+                className="w-full text-amber-500 text-sm hover:underline"
               >
-                Skip verification →
+                Resend OTP
               </button>
             </div>
           )}

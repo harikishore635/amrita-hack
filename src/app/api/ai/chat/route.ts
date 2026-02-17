@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { store } from '@/lib/store';
 import { getAuthUser } from '@/lib/server-auth';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDGpiyW5eFvb_GLZBVlB7ZtGUhBj0XhJCg';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
 export async function POST(req: NextRequest) {
     const auth = getAuthUser(req);
@@ -45,10 +45,12 @@ USER CONTEXT:
 
 INSTRUCTIONS:
 - Be warm, encouraging, and simple
-- Always reference user's actual pension data
+- Always reference user's actual pension data when relevant
 - Keep responses concise (2-4 paragraphs max)
 - Suggest actionable steps
 - Use ₹ symbol for amounts
+- Answer the user's specific question directly - do not give generic responses
+- If the user asks about something unrelated to pensions, still answer helpfully but tie it back to financial planning when possible
 - Respond in ${langMap[language] || 'English'}`;
 
         const chatHistory = recentChats.map(m => ({
@@ -59,16 +61,21 @@ INSTRUCTIONS:
         let aiResponse: string;
 
         try {
+            if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
+
             const { GoogleGenerativeAI } = await import('@google/generative-ai');
             const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+            const model = genAI.getGenerativeModel({
+                model: 'gemini-2.0-flash',
+                systemInstruction: systemPrompt,
+            });
 
             const chat = model.startChat({
                 history: chatHistory.length > 0 ? chatHistory as any : undefined,
-                generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
+                generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
             });
 
-            const result = await chat.sendMessage(`${systemPrompt}\n\nUser message: ${message}`);
+            const result = await chat.sendMessage(message);
             aiResponse = result.response.text();
         } catch (aiErr: any) {
             console.error('Gemini error:', aiErr.message);

@@ -59,6 +59,10 @@
     "out",
     "cache",
     "contracts",
-    "backend"
+    "backend",
+    "artifacts",
+    "typechain-types",
+    "scripts",
+    "hardhat.config.ts"
   ]
 }
