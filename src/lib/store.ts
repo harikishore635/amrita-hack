@@ -202,7 +202,7 @@ class DataStore {
             email: 'ramesh@pension.com', password: pw, name: 'Ramesh Kumar',
             phone: '9876543210', phoneVerified: true, role: 'worker', age: 36,
             monthlyIncome: '₹10,000 - ₹20,000', riskProfile: 'Balanced',
-            walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18',
+            walletAddress: '0xa6dF377eBf1AB4EaD308b5A3afCAae4e44175d81',
             currentEmployerId: emp.id,
             createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000), // joined ~13 months ago
         });
@@ -223,22 +223,12 @@ class DataStore {
             });
         }
 
-        // 30 days of contributions for Ramesh
+        // Seed a few recent contributions for demo purposes (last 3 days only)
         const now = Date.now();
-        for (let day = 30; day >= 0; day--) {
+        for (let day = 2; day >= 0; day--) {
             const date = new Date(now - day * 24 * 60 * 60 * 1000);
             this.addContribution({ userId: w.id, amount: 10, type: 'contribution', paymentMethod: 'upi', createdAt: date });
             this.addContribution({ userId: w.id, amount: 5, employerMatch: 5, type: 'match', paymentMethod: 'employer', employerId: emp.id, createdAt: date });
-            if (day % 7 === 0) {
-                this.addContribution({ userId: w.id, amount: Math.round(Math.random() * 15 + 5), type: 'yield', paymentMethod: 'defi', createdAt: date });
-            }
-        }
-
-        // 12 months of historical data
-        for (let m = 1; m <= 12; m++) {
-            const d = new Date(now - m * 30 * 24 * 60 * 60 * 1000);
-            this.addContribution({ userId: w.id, amount: 300, type: 'contribution', paymentMethod: 'upi', createdAt: d });
-            this.addContribution({ userId: w.id, amount: 150, employerMatch: 150, type: 'match', paymentMethod: 'employer', employerId: emp.id, createdAt: d });
         }
 
         console.log('🌱 Store seeded: ramesh@pension.com / worker123 | employer@abc.com / employer123');
