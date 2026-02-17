@@ -2,21 +2,110 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
+import { authAPI, userAPI } from '@/lib/api'
 
 export default function Signup() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
     phone: '',
     otp: '',
-    aadhaar: '',
     name: '',
     age: '',
     monthlyIncome: '',
     riskProfile: '',
   })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState('')
 
-  const handleNext = () => {
-    if (step < 4) setStep(step + 1)
+  const { register } = useAuth()
+  const router = useRouter()
+
+  const handleStep1 = async () => {
+    if (!formData.email || !formData.password) {
+      setError('Email and password are required')
+      return
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+    setError('')
+    setStep(2)
+  }
+
+  const handleStep2SendOtp = async () => {
+    if (!formData.phone) {
+      setError('Phone number is required')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      // Register the user first
+      await register({
+        email: formData.email,
+        password: formData.password,
+        name: formData.name || formData.email.split('@')[0],
+        phone: formData.phone,
+      })
+      setSuccess('Account created! OTP sent to your phone (check backend console)')
+      setStep(3)
+    } catch (err: any) {
+      setError(err.message || 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStep3VerifyOtp = async () => {
+    if (!formData.otp) {
+      setError('Enter the OTP')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await authAPI.verifyOtp(formData.phone, formData.otp)
+      setSuccess('Phone verified!')
+      setStep(4)
+    } catch (err: any) {
+      setError(err.message || 'Invalid OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStep4Complete = async () => {
+    if (!formData.name) {
+      setError('Name is required')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await userAPI.updateProfile({
+        name: formData.name,
+        age: formData.age ? parseInt(formData.age) : undefined,
+        monthlyIncome: formData.monthlyIncome,
+        riskProfile: formData.riskProfile || 'Balanced',
+      })
+      router.push('/dashboard')
+    } catch (err: any) {
+      // Still navigate to dashboard even if profile update fails
+      router.push('/dashboard')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -36,11 +125,10 @@ export default function Signup() {
           <div className="flex items-center gap-2 mb-8">
             {[1, 2, 3, 4].map((s) => (
               <div key={s} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  s < step ? 'bg-green-500' :
-                  s === step ? 'bg-amber-500' :
-                  'bg-white/10'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${s < step ? 'bg-green-500' :
+                    s === step ? 'bg-amber-500' :
+                      'bg-white/10'
+                  }`}>
                   {s < step ? (
                     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -54,12 +142,71 @@ export default function Signup() {
             ))}
           </div>
 
-          {/* Step 1: Phone Verification */}
+          {/* Error / Success Messages */}
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+              {success}
+            </div>
+          )}
+
+          {/* Step 1: Email & Password */}
           {step === 1 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Enter your phone number</h1>
-                <p className="text-gray-400">We'll send you a verification code</p>
+                <h1 className="text-3xl font-bold text-white mb-2">Create your account</h1>
+                <p className="text-gray-400">Email is required for login</p>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  className="w-full input-dark"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Password <span className="text-red-400">*</span></label>
+                <input
+                  type="password"
+                  placeholder="Minimum 6 characters"
+                  className="w-full input-dark"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Confirm Password <span className="text-red-400">*</span></label>
+                <input
+                  type="password"
+                  placeholder="Re-enter password"
+                  className="w-full input-dark"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                />
+              </div>
+
+              <button onClick={handleStep1} className="w-full btn-gold">
+                Continue
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Phone Number */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <h1 className="text-3xl font-bold text-white mb-2">Verify your phone</h1>
+                <p className="text-gray-400">We&apos;ll send you a verification code</p>
               </div>
 
               <div>
@@ -71,22 +218,30 @@ export default function Signup() {
                   <input
                     type="tel"
                     placeholder="98765 43210"
-                    className="flex-1 input-dark text-2xl tracking-wider"
+                    className="flex-1 input-dark text-xl tracking-wider"
                     value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
               </div>
 
-              <button onClick={handleNext} className="w-full btn-gold">
-                Send OTP
+              <button
+                onClick={handleStep2SendOtp}
+                disabled={loading}
+                className="w-full btn-gold disabled:opacity-50"
+              >
+                {loading ? 'Creating Account...' : 'Create Account & Send OTP'}
+              </button>
+
+              <button onClick={() => setStep(1)} className="w-full text-gray-500 text-sm hover:text-white">
+                ← Back
               </button>
             </div>
           )}
 
-          {/* Step 2: OTP Verification */}
-          {step === 2 && (
-            <div className="space-y-6">
+          {/* Step 3: OTP Verification */}
+          {step === 3 && (
+            <div className="space-y-4">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">Verify OTP</h1>
                 <p className="text-gray-400">Enter the 6-digit code sent to +91 {formData.phone}</p>
@@ -94,68 +249,39 @@ export default function Signup() {
 
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">Enter OTP</label>
-                <div className="flex gap-3 justify-between">
-                  {[...Array(6)].map((_, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength={1}
-                      className="w-12 h-14 input-dark text-center text-2xl"
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <p className="text-gray-500 text-sm text-center">
-                Didn't receive? <button className="text-amber-500">Resend OTP</button>
-              </p>
-
-              <button onClick={handleNext} className="w-full btn-gold">
-                Verify & Continue
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Aadhaar KYC */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-2">Verify Identity</h1>
-                <p className="text-gray-400">We use Aadhaar for secure identity verification</p>
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">Aadhaar Number</label>
                 <input
                   type="text"
-                  placeholder="XXXX XXXX XXXX"
-                  className="input-dark text-xl tracking-wider"
-                  value={formData.aadhaar}
-                  onChange={(e) => setFormData({...formData, aadhaar: e.target.value})}
+                  placeholder="123456"
+                  maxLength={6}
+                  className="w-full input-dark text-center text-2xl tracking-[0.5em]"
+                  value={formData.otp}
+                  onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
                 />
+                <p className="text-gray-500 text-xs mt-2 text-center">
+                  Check backend console for OTP code
+                </p>
               </div>
 
-              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                <div className="flex items-start gap-3">
-                  <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  <div>
-                    <p className="text-blue-400 font-medium">Secure & Private</p>
-                    <p className="text-gray-500 text-sm">Your Aadhaar info is encrypted and never shared. We only verify your identity.</p>
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={handleStep3VerifyOtp}
+                disabled={loading}
+                className="w-full btn-gold disabled:opacity-50"
+              >
+                {loading ? 'Verifying...' : 'Verify & Continue'}
+              </button>
 
-              <button onClick={handleNext} className="w-full btn-gold">
-                Verify Aadhaar
+              <button
+                onClick={() => setStep(4)}
+                className="w-full text-gray-500 text-sm hover:text-white"
+              >
+                Skip verification →
               </button>
             </div>
           )}
 
           {/* Step 4: Profile Setup */}
           {step === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">Almost there!</h1>
                 <p className="text-gray-400">Tell us a bit about yourself</p>
@@ -163,13 +289,13 @@ export default function Signup() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Your Name</label>
+                  <label className="text-gray-400 text-sm mb-2 block">Your Name <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     placeholder="Enter your name"
                     className="input-dark"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
 
@@ -180,18 +306,22 @@ export default function Signup() {
                     placeholder="35"
                     className="input-dark"
                     value={formData.age}
-                    onChange={(e) => setFormData({...formData, age: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                   />
                 </div>
 
                 <div>
                   <label className="text-gray-400 text-sm mb-2 block">Monthly Income Range</label>
-                  <select className="input-dark">
+                  <select
+                    className="input-dark"
+                    value={formData.monthlyIncome}
+                    onChange={(e) => setFormData({ ...formData, monthlyIncome: e.target.value })}
+                  >
                     <option value="">Select range</option>
-                    <option value="1">₹5,000 - ₹10,000</option>
-                    <option value="2">₹10,000 - ₹20,000</option>
-                    <option value="3">₹20,000 - ₹30,000</option>
-                    <option value="4">₹30,000+</option>
+                    <option value="₹5,000 - ₹10,000">₹5,000 - ₹10,000</option>
+                    <option value="₹10,000 - ₹20,000">₹10,000 - ₹20,000</option>
+                    <option value="₹20,000 - ₹30,000">₹20,000 - ₹30,000</option>
+                    <option value="₹30,000+">₹30,000+</option>
                   </select>
                 </div>
 
@@ -201,12 +331,11 @@ export default function Signup() {
                     {['Safe', 'Balanced', 'Growth'].map((risk) => (
                       <button
                         key={risk}
-                        className={`p-3 rounded-xl border ${
-                          formData.riskProfile === risk 
-                            ? 'border-amber-500 bg-amber-500/10' 
+                        className={`p-3 rounded-xl border ${formData.riskProfile === risk
+                            ? 'border-amber-500 bg-amber-500/10'
                             : 'border-white/10 hover:border-white/20'
-                        } text-white text-sm`}
-                        onClick={() => setFormData({...formData, riskProfile: risk})}
+                          } text-white text-sm`}
+                        onClick={() => setFormData({ ...formData, riskProfile: risk })}
                       >
                         {risk}
                       </button>
@@ -215,9 +344,13 @@ export default function Signup() {
                 </div>
               </div>
 
-              <Link href="/dashboard" className="block w-full btn-gold text-center">
-                Create My Pension Account
-              </Link>
+              <button
+                onClick={handleStep4Complete}
+                disabled={loading}
+                className="w-full btn-gold disabled:opacity-50 text-center"
+              >
+                {loading ? 'Setting up...' : 'Create My Pension Account'}
+              </button>
             </div>
           )}
 
@@ -238,14 +371,14 @@ export default function Signup() {
           <p className="text-gray-400 text-lg max-w-md mb-8">
             Join 10,000+ workers already building their retirement savings with PensionChain.
           </p>
-          
+
           {/* Feature List */}
           <div className="space-y-4 text-left max-w-sm mx-auto">
             {[
-              'Blockchain-secured savings',
+              '🔒 Blockchain-secured savings',
               '🤝 50% employer matching',
               '🤖 AI-powered planning',
-              'Works on any smartphone',
+              '📱 Works on any smartphone',
             ].map((feature, i) => (
               <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-white/5">
                 <span className="text-xl">{feature.split(' ')[0]}</span>

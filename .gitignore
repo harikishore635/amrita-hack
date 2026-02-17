@@ -67,3 +67,12 @@ logs
 # Temporary files
 *.tmp
 .temp/
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Netlify
+.netlify/

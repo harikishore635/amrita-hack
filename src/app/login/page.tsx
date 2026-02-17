@@ -2,9 +2,76 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/AuthContext'
+import { authAPI } from '@/lib/api'
 
 export default function Login() {
-  const [method, setMethod] = useState<'phone' | 'biometric'>('phone')
+  const [method, setMethod] = useState<'email' | 'phone'>('email')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState('')
+
+  const { login } = useAuth()
+  const router = useRouter()
+
+  const handleEmailLogin = async () => {
+    if (!email || !password) {
+      setError('Email and password are required')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await login(email, password)
+      router.push('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Check your credentials.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSendOtp = async () => {
+    if (!phone) {
+      setError('Phone number is required')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await authAPI.sendOtp(phone)
+      setOtpSent(true)
+      setSuccess('OTP sent! Check backend console for the code.')
+    } catch (err: any) {
+      setError(err.message || 'Failed to send OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOtp = async () => {
+    if (!otp) {
+      setError('Enter the OTP')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      await authAPI.verifyOtp(phone, otp)
+      setSuccess('Phone verified! Please login with email & password.')
+      setMethod('email')
+    } catch (err: any) {
+      setError(err.message || 'Invalid OTP')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6">
@@ -22,67 +89,132 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome Back</h1>
           <p className="text-gray-400 text-center mb-8">Access your pension account</p>
 
+          {/* Error / Success Messages */}
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm">
+              {success}
+            </div>
+          )}
+
           {/* Login Method Tabs */}
           <div className="flex gap-2 p-1 bg-white/5 rounded-xl mb-8">
             <button
-              onClick={() => setMethod('phone')}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                method === 'phone' 
-                  ? 'bg-amber-500 text-black' 
+              onClick={() => { setMethod('email'); setError(''); }}
+              className={`flex-1 py-3 rounded-lg font-medium transition-all ${method === 'email'
+                  ? 'bg-amber-500 text-black'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
-              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              Phone
+              ✉️ Email
             </button>
             <button
-              onClick={() => setMethod('biometric')}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all ${
-                method === 'biometric' 
-                  ? 'bg-amber-500 text-black' 
+              onClick={() => { setMethod('phone'); setError(''); }}
+              className={`flex-1 py-3 rounded-lg font-medium transition-all ${method === 'phone'
+                  ? 'bg-amber-500 text-black'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
-              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3.5M3 16.5h18" />
-              </svg>
-              Biometric
+              📱 Phone OTP
             </button>
           </div>
 
-          {method === 'phone' ? (
-            <div className="space-y-6">
+          {method === 'email' ? (
+            <div className="space-y-4">
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Phone Number</label>
-                <div className="flex gap-3">
-                  <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white">
-                    +91
-                  </div>
-                  <input
-                    type="tel"
-                    placeholder="98765 43210"
-                    className="flex-1 input-dark"
-                  />
-                </div>
+                <label className="text-gray-400 text-sm mb-2 block">Email Address <span className="text-red-400">*</span></label>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  className="w-full input-dark"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
+                />
               </div>
 
-              <button className="w-full btn-gold">
-                Send OTP
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  className="w-full input-dark"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
+                />
+              </div>
+
+              <button
+                onClick={handleEmailLogin}
+                disabled={loading}
+                className="w-full btn-gold disabled:opacity-50"
+              >
+                {loading ? 'Logging in...' : 'Login'}
               </button>
             </div>
           ) : (
-            <div className="space-y-6 text-center">
-              <div className="w-24 h-24 mx-auto rounded-full bg-white/5 border-2 border-amber-500/50 flex items-center justify-center">
-                <svg className="w-16 h-16 text-amber-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3.5M3 16.5h18" />
-                </svg>
-              </div>
-              <p className="text-gray-400">Place your finger on the sensor to login</p>
-              <button className="w-full btn-gold">
-                Use Biometric
-              </button>
+            <div className="space-y-4">
+              {!otpSent ? (
+                <>
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Phone Number</label>
+                    <div className="flex gap-3">
+                      <div className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white">
+                        +91
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder="98765 43210"
+                        className="flex-1 input-dark"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={loading}
+                    className="w-full btn-gold disabled:opacity-50"
+                  >
+                    {loading ? 'Sending...' : 'Send OTP'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Enter 6-digit OTP</label>
+                    <input
+                      type="text"
+                      placeholder="123456"
+                      maxLength={6}
+                      className="w-full input-dark text-center text-2xl tracking-[0.5em]"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                    />
+                    <p className="text-gray-500 text-xs mt-2 text-center">
+                      OTP sent to +91 {phone} (check backend console)
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleVerifyOtp}
+                    disabled={loading}
+                    className="w-full btn-gold disabled:opacity-50"
+                  >
+                    {loading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                  <button
+                    onClick={() => { setOtpSent(false); setOtp(''); }}
+                    className="w-full text-gray-500 text-sm hover:text-white"
+                  >
+                    ← Change phone number
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -93,14 +225,13 @@ export default function Login() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          {/* Alternative Options */}
-          <div className="space-y-3">
-            <button className="w-full p-4 rounded-xl border border-white/10 hover:border-white/20 flex items-center justify-center gap-3 transition-colors">
-              <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span className="text-white">Login as Employer</span>
-            </button>
+          {/* Demo Accounts Info */}
+          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-2">
+            <p className="text-blue-400 font-medium text-sm">Demo Accounts</p>
+            <div className="text-gray-400 text-xs space-y-1">
+              <p>👷 Worker: <span className="text-white">ramesh@pension.com</span> / <span className="text-white">worker123</span></p>
+              <p>🏢 Employer: <span className="text-white">employer@abc.com</span> / <span className="text-white">employer123</span></p>
+            </div>
           </div>
         </div>
 

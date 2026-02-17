@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  GEMINI_API_KEY = "AIzaSyDGpiyW5eFvb_GLZBVlB7ZtGUhBj0XhJCg"
+  JWT_SECRET = "pensionchain-jwt-secret-2026"
+  JWT_REFRESH_SECRET = "pensionchain-refresh-secret-2026"
+  NODE_VERSION = "18"

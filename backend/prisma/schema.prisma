@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String
+  phone           String?  @unique
+  phoneVerified   Boolean  @default(false)
+  age             Int?
+  monthlyIncome   String?
+  riskProfile     String?  @default("Balanced")
+  role            String   @default("worker") // worker, employer, admin
+  walletAddress   String?
+  currentEmployerId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  contributions   Contribution[]
+  chatHistory     ChatMessage[]
+  employer        Employer?      @relation("EmployerUser")
+  employedAt      Employer?      @relation("EmployeeList", fields: [currentEmployerId], references: [id])
+}
+
+model Employer {
+  id              String   @id @default(cuid())
+  companyName     String
+  gstNumber       String?
+  matchPercentage Float    @default(50)
+  userId          String   @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation("EmployerUser", fields: [userId], references: [id])
+  employees       User[]   @relation("EmployeeList")
+  contributions   Contribution[] @relation("EmployerContributions")
+}
+
+model Contribution {
+  id              String   @id @default(cuid())
+  userId          String
+  amount          Float
+  employerMatch   Float    @default(0)
+  type            String   @default("contribution") // contribution, match, yield, withdrawal
+  paymentMethod   String   @default("upi") // upi, card, crypto
+  paymentStatus   String   @default("completed") // pending, completed, failed
+  txHash          String?  // blockchain transaction hash
+  employerId      String?
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
+  employer        Employer? @relation("EmployerContributions", fields: [employerId], references: [id])
+}
+
+model OtpVerification {
+  id        String   @id @default(cuid())
+  phone     String
+  otp       String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // user, ai
+  content   String
+  language  String?  @default("en")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
