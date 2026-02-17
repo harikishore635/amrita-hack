@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { store } from '@/lib/store';
 import { getAuthUser } from '@/lib/server-auth';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 
 export async function POST(req: NextRequest) {
     const auth = getAuthUser(req);
@@ -54,31 +54,45 @@ INSTRUCTIONS:
 - Respond in ${langMap[language] || 'English'}`;
 
         const chatHistory = recentChats.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }],
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.content,
         }));
 
         let aiResponse: string;
 
         try {
-            if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not configured');
+            if (!DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY not configured');
 
-            const { GoogleGenerativeAI } = await import('@google/generative-ai');
-            const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-2.0-flash',
-                systemInstruction: systemPrompt,
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...chatHistory,
+                { role: 'user', content: message },
+            ];
+
+            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages,
+                    max_tokens: 600,
+                    temperature: 0.7,
+                }),
             });
 
-            const chat = model.startChat({
-                history: chatHistory.length > 0 ? chatHistory as any : undefined,
-                generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-            });
+            if (!response.ok) {
+                throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+            }
 
-            const result = await chat.sendMessage(message);
-            aiResponse = result.response.text();
+            const data = await response.json();
+            aiResponse = data.choices?.[0]?.message?.content || '';
+
+            if (!aiResponse) throw new Error('Empty response from DeepSeek');
         } catch (aiErr: any) {
-            console.error('Gemini error:', aiErr.message);
+            console.error('DeepSeek error:', aiErr.message);
             aiResponse = getFallback(message, balance, projectedCorpus, monthlyPension, ytr, avgDaily);
         }
 
