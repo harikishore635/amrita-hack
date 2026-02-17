@@ -239,9 +239,9 @@ export default function Dashboard() {
                     <div key={tx.id || index} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'contribution' ? 'bg-blue-500/20' :
-                            tx.type === 'match' ? 'bg-green-500/20' :
-                              tx.type === 'yield' ? 'bg-amber-500/20' :
-                                'bg-red-500/20'
+                          tx.type === 'match' ? 'bg-green-500/20' :
+                            tx.type === 'yield' ? 'bg-amber-500/20' :
+                              'bg-red-500/20'
                           }`}>
                           <span className="text-lg">
                             {tx.type === 'contribution' ? '💰' :
@@ -262,9 +262,9 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <p className={`font-semibold ${tx.type === 'withdrawal' ? 'text-red-500' :
-                          tx.type === 'match' ? 'text-green-500' :
-                            tx.type === 'yield' ? 'text-amber-500' :
-                              'text-white'
+                        tx.type === 'match' ? 'text-green-500' :
+                          tx.type === 'yield' ? 'text-amber-500' :
+                            'text-white'
                         }`}>
                         {tx.type === 'withdrawal' ? '-' : '+'}₹{tx.amount}
                       </p>
@@ -302,6 +302,13 @@ export default function Dashboard() {
                     <p className="text-gray-500 text-sm">Access funds if needed</p>
                   </div>
                 </button>
+                <Link href="/blockchain" className="w-full p-4 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/30 transition-colors text-left flex items-center gap-3 block">
+                  <span className="text-2xl">⛓️</span>
+                  <div>
+                    <p className="text-white font-medium">Blockchain Ledger</p>
+                    <p className="text-purple-400 text-sm">View on Polygon</p>
+                  </div>
+                </Link>
               </div>
             </div>
 
@@ -389,8 +396,8 @@ export default function Dashboard() {
                         key={amount}
                         onClick={() => setSelectedAmount(amount)}
                         className={`p-4 rounded-xl border transition-all text-center ${selectedAmount === amount
-                            ? 'border-amber-500 bg-amber-500/20'
-                            : 'border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10'
+                          ? 'border-amber-500 bg-amber-500/20'
+                          : 'border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10'
                           }`}
                       >
                         <p className="text-white font-bold">₹{amount}</p>
