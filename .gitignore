@@ -76,3 +76,11 @@ backend/prisma/dev.db-journal
 
 # Netlify
 .netlify/
+
+# Persistent store data
+.data/
+
+# Temp files
+_wallet.txt
+_address.txt
+_deployed.txt

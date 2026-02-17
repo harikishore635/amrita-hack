@@ -16,6 +16,14 @@ export default function Dashboard() {
   const [contributions, setContributions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Switch Job state
+  const [showSwitchJobModal, setShowSwitchJobModal] = useState(false)
+  const [switchJobStep, setSwitchJobStep] = useState<'qr' | 'scan' | 'done'>('qr')
+  const [transferRecord, setTransferRecord] = useState<any>(null)
+  const [newEmployerName, setNewEmployerName] = useState('')
+  const [switchJobLoading, setSwitchJobLoading] = useState(false)
+  const [switchJobResult, setSwitchJobResult] = useState<any>(null)
+
   const { user, logout, isAuthenticated } = useAuth()
   const router = useRouter()
 
@@ -63,6 +71,34 @@ export default function Dashboard() {
       console.error('Contribution failed:', err)
     } finally {
       setContributionLoading(false)
+    }
+  }
+
+  const handleSwitchJobOpen = async () => {
+    setShowSwitchJobModal(true)
+    setSwitchJobStep('qr')
+    setSwitchJobResult(null)
+    setNewEmployerName('')
+    try {
+      const record = await pensionAPI.getTransferRecord()
+      setTransferRecord(record)
+    } catch (err) {
+      console.error('Failed to get transfer record:', err)
+    }
+  }
+
+  const handleSwitchJob = async () => {
+    if (!newEmployerName.trim()) return
+    setSwitchJobLoading(true)
+    try {
+      const result = await pensionAPI.switchJob(newEmployerName.trim())
+      setSwitchJobResult(result)
+      setSwitchJobStep('done')
+      await fetchData()
+    } catch (err: any) {
+      console.error('Switch job failed:', err)
+    } finally {
+      setSwitchJobLoading(false)
     }
   }
 
@@ -169,7 +205,7 @@ export default function Dashboard() {
             <p className="text-gray-400 text-sm mb-1">This Month</p>
             <p className="text-3xl font-bold text-white mb-2">₹{(monthContribution + monthMatch).toLocaleString()}</p>
             <p className="text-gray-500 text-sm">
-              Your: ₹{monthContribution} | Match: ₹{monthMatch}
+              Your: ₹{monthContribution} {monthMatch > 0 && <span className="text-green-500">+ Company Match ✓</span>}
             </p>
           </div>
 
@@ -237,41 +273,56 @@ export default function Dashboard() {
                 {contributions.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">No contributions yet. Make your first one!</p>
                 ) : (
-                  contributions.map((tx: any, index: number) => (
-                    <div key={tx.id || index} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'contribution' ? 'bg-blue-500/20' :
-                          tx.type === 'match' ? 'bg-green-500/20' :
+                  contributions
+                    .filter((tx: any) => tx.type !== 'match')
+                    .map((tx: any, index: number) => (
+                      <div key={tx.id || index} className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'contribution' ? 'bg-blue-500/20' :
                             tx.type === 'yield' ? 'bg-amber-500/20' :
                               'bg-red-500/20'
-                          }`}>
-                          <span className="text-lg">
-                            {tx.type === 'contribution' ? '💰' :
-                              tx.type === 'match' ? '🤝' :
-                                tx.type === 'yield' ? '📈' : '🔴'}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">
-                            {tx.type === 'contribution' ? 'Your Contribution' :
-                              tx.type === 'match' ? 'Employer Match' :
+                            }`}>
+                            <span className="text-lg">
+                              {tx.type === 'contribution' ? '💰' :
+                                tx.type === 'yield' ? '📈' : '💸'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-white font-medium">
+                              {tx.type === 'contribution' ? 'Your Contribution' :
                                 tx.type === 'yield' ? 'Yield Earned' :
                                   'Withdrawal'}
-                          </p>
-                          <p className="text-gray-500 text-sm">
-                            {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          </p>
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <p className={`font-semibold ${tx.type === 'withdrawal' ? 'text-red-500' :
-                        tx.type === 'match' ? 'text-green-500' :
+                        <p className={`font-semibold ${tx.type === 'withdrawal' ? 'text-red-500' :
                           tx.type === 'yield' ? 'text-amber-500' :
                             'text-white'
-                        }`}>
-                        {tx.type === 'withdrawal' ? '-' : '+'}₹{tx.amount}
-                      </p>
+                          }`}>
+                          {tx.type === 'withdrawal' ? '-' : '+'}₹{tx.amount}
+                        </p>
+                      </div>
+                    ))
+                )}
+                {/* Show aggregated company benefit if there are matches */}
+                {contributions.filter((tx: any) => tx.type === 'match').length > 0 && (
+                  <div className="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/20">
+                        <span className="text-lg">🏢</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Company Benefit</p>
+                        <p className="text-gray-500 text-sm">Employer matching added to your balance</p>
+                      </div>
                     </div>
-                  ))
+                    <p className="font-semibold text-green-500">
+                      +₹{contributions.filter((tx: any) => tx.type === 'match').reduce((s: number, tx: any) => s + tx.amount + (tx.employerMatch || 0), 0)}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
@@ -284,26 +335,33 @@ export default function Dashboard() {
               <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
               <div className="space-y-3">
                 <Link href="/chat" className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3 block">
-                  <span className="text-2xl">🤖</span>
+                  <span className="text-2xl">💰</span>
                   <div>
-                    <p className="text-white font-medium">AI Advisor</p>
-                    <p className="text-gray-500 text-sm">Get personalized advice</p>
+                    <p className="text-white font-medium">FinBot</p>
+                    <p className="text-gray-500 text-sm">AI Financial Advisor</p>
                   </div>
                 </Link>
-                <button className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3">
+                <Link href="/history" className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3 block">
+                  <span className="text-2xl">📜</span>
+                  <div>
+                    <p className="text-white font-medium">History</p>
+                    <p className="text-gray-500 text-sm">View all transactions by employer</p>
+                  </div>
+                </Link>
+                <button onClick={handleSwitchJobOpen} className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3">
                   <span className="text-2xl">🔄</span>
                   <div>
                     <p className="text-white font-medium">Switch Job</p>
                     <p className="text-gray-500 text-sm">Transfer to new employer</p>
                   </div>
                 </button>
-                <button className="w-full p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left flex items-center gap-3">
-                  <span className="text-2xl">🚨</span>
+                <Link href="/blockchain" className="w-full p-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 transition-colors text-left flex items-center gap-3 block">
+                  <span className="text-2xl">💸</span>
                   <div>
-                    <p className="text-white font-medium">Emergency Withdrawal</p>
-                    <p className="text-gray-500 text-sm">Access funds if needed</p>
+                    <p className="text-white font-medium">Withdraw Funds</p>
+                    <p className="text-gray-500 text-sm">Emergency withdrawal available</p>
                   </div>
-                </button>
+                </Link>
                 <Link href="/blockchain" className="w-full p-4 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/30 transition-colors text-left flex items-center gap-3 block">
                   <span className="text-2xl">⛓️</span>
                   <div>
@@ -437,6 +495,190 @@ export default function Dashboard() {
                   className="w-full btn-gold text-lg disabled:opacity-50"
                 >
                   {contributionLoading ? 'Processing...' : `Contribute ₹${selectedAmount} Now`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Switch Job Modal */}
+      {showSwitchJobModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-md card-highlight max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">🔄 Switch Employer</h2>
+              <button
+                onClick={() => setShowSwitchJobModal(false)}
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {switchJobStep === 'qr' && (
+              <div className="space-y-6">
+                {/* QR Code Visual */}
+                <div className="text-center">
+                  <p className="text-gray-400 text-sm mb-4">Your portable pension record — new employer scans this to onboard you</p>
+                  <div className="inline-block p-4 bg-white rounded-2xl mb-4">
+                    <div className="w-48 h-48 relative">
+                      {/* Stylized QR pattern */}
+                      <svg viewBox="0 0 200 200" className="w-full h-full">
+                        {/* Corner squares */}
+                        <rect x="10" y="10" width="50" height="50" rx="4" fill="#000" />
+                        <rect x="16" y="16" width="38" height="38" rx="2" fill="#fff" />
+                        <rect x="22" y="22" width="26" height="26" rx="2" fill="#000" />
+                        <rect x="140" y="10" width="50" height="50" rx="4" fill="#000" />
+                        <rect x="146" y="16" width="38" height="38" rx="2" fill="#fff" />
+                        <rect x="152" y="22" width="26" height="26" rx="2" fill="#000" />
+                        <rect x="10" y="140" width="50" height="50" rx="4" fill="#000" />
+                        <rect x="16" y="146" width="38" height="38" rx="2" fill="#fff" />
+                        <rect x="22" y="152" width="26" height="26" rx="2" fill="#000" />
+                        {/* Data dots */}
+                        {Array.from({ length: 12 }, (_, r) =>
+                          Array.from({ length: 12 }, (_, c) => {
+                            const x = 70 + c * 8; const y = 70 + r * 8
+                            const show = ((r * 7 + c * 3) % 3 !== 0)
+                            return show ? <rect key={`${r}-${c}`} x={x} y={y} width="6" height="6" rx="1" fill="#000" /> : null
+                          })
+                        )}
+                        {/* Center logo */}
+                        <circle cx="100" cy="100" r="16" fill="#f59e0b" />
+                        <text x="100" y="105" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#000">P</text>
+                      </svg>
+                    </div>
+                  </div>
+                  {transferRecord?.verificationCode && (
+                    <p className="text-amber-400 font-mono text-sm">Code: {transferRecord.verificationCode}</p>
+                  )}
+                </div>
+
+                {/* Transfer Record Summary */}
+                {transferRecord && (
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Name</span>
+                      <span className="text-white text-sm font-medium">{transferRecord.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Current Employer</span>
+                      <span className="text-white text-sm">{transferRecord.currentEmployer}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Pension Balance</span>
+                      <span className="text-green-400 text-sm font-bold">₹{transferRecord.pensionBalance?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Total Contributions</span>
+                      <span className="text-white text-sm">{transferRecord.totalTransactions} txns</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Member Since</span>
+                      <span className="text-white text-sm">{new Date(transferRecord.memberSince).toLocaleDateString('en-IN')}</span>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setSwitchJobStep('scan')}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium hover:from-blue-500 hover:to-purple-500 transition-all"
+                >
+                  📱 Simulate Employer Scan
+                </button>
+              </div>
+            )}
+
+            {switchJobStep === 'scan' && (
+              <div className="space-y-6">
+                <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                  <p className="text-blue-400 text-sm">🏢 New employer has scanned your QR code and is reviewing your pension record...</p>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 text-sm mb-2 block">New Employer Company Name</label>
+                  <input
+                    type="text"
+                    value={newEmployerName}
+                    onChange={(e) => setNewEmployerName(e.target.value)}
+                    placeholder="e.g. Infosys, TCS, Wipro..."
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-600 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {['Infosys', 'TCS', 'Wipro'].map((company) => (
+                    <button
+                      key={company}
+                      onClick={() => setNewEmployerName(company)}
+                      className={`p-2 rounded-lg border text-sm transition-all ${newEmployerName === company
+                        ? 'border-amber-500 bg-amber-500/20 text-amber-400'
+                        : 'border-white/10 text-gray-400 hover:border-amber-500/50'
+                        }`}
+                    >
+                      {company}
+                    </button>
+                  ))}
+                </div>
+
+                {transferRecord && (
+                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                    <p className="text-green-400 text-sm font-medium mb-1">✅ Pension record verified</p>
+                    <p className="text-gray-400 text-xs">Balance of ₹{transferRecord.pensionBalance?.toLocaleString()} will be carried to the new employer. No funds lost!</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setSwitchJobStep('qr')}
+                    className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-gray-400 hover:bg-white/10 transition-colors"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={handleSwitchJob}
+                    disabled={!newEmployerName.trim() || switchJobLoading}
+                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium hover:from-green-500 hover:to-emerald-500 transition-all disabled:opacity-50"
+                  >
+                    {switchJobLoading ? '⏳ Transferring...' : '✅ Confirm Transfer'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {switchJobStep === 'done' && switchJobResult && (
+              <div className="text-center py-6 space-y-4">
+                <div className="text-5xl mb-2">🎉</div>
+                <p className="text-green-400 font-bold text-lg">{switchJobResult.message}</p>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-left space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 text-sm">From</span>
+                    <span className="text-red-400 text-sm">{switchJobResult.transfer?.from}</span>
+                  </div>
+                  <div className="flex items-center justify-center text-amber-400 text-lg">→</div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 text-sm">To</span>
+                    <span className="text-green-400 text-sm font-bold">{switchJobResult.transfer?.to}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">Balance Carried</span>
+                      <span className="text-white text-sm font-bold">₹{switchJobResult.transfer?.balanceCarried?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 text-sm">New Match %</span>
+                      <span className="text-amber-400 text-sm">{switchJobResult.transfer?.matchPercentage}%</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs">Your pension continues seamlessly with your new employer</p>
+                <button
+                  onClick={() => setShowSwitchJobModal(false)}
+                  className="w-full py-3 px-4 rounded-xl bg-amber-500 text-black font-medium hover:bg-amber-400 transition-colors"
+                >
+                  Done
                 </button>
               </div>
             )}

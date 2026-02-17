@@ -134,6 +134,16 @@ export const pensionAPI = {
         apiFetch('/api/pension/contribute', { method: 'POST', body: JSON.stringify({ amount, paymentMethod }) }),
 
     getProjection: () => apiFetch('/api/pension/projection'),
+
+    getWithdrawInfo: () => apiFetch('/api/pension/withdraw'),
+
+    withdraw: (amount: number, reason?: string) =>
+        apiFetch('/api/pension/withdraw', { method: 'POST', body: JSON.stringify({ amount, reason }) }),
+
+    getTransferRecord: () => apiFetch('/api/pension/switch-job'),
+
+    switchJob: (newEmployerName: string, matchPercentage?: number) =>
+        apiFetch('/api/pension/switch-job', { method: 'POST', body: JSON.stringify({ newEmployerName, matchPercentage }) }),
 };
 
 // ─────────────────────────────────────────────
@@ -165,6 +175,10 @@ export const blockchainAPI = {
     getWalletBalance: () => apiFetch('/api/blockchain/wallet-balance'),
 
     getTransactions: () => apiFetch('/api/blockchain/transactions'),
+
+    getWalletStatus: () => apiFetch('/api/blockchain/self-transfer'),
+
+    selfTransfer: () => apiFetch('/api/blockchain/self-transfer', { method: 'POST' }),
 };
 
 // ─────────────────────────────────────────────

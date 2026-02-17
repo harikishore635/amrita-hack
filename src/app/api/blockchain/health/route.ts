@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { isBlockchainConfigured, healthCheck } from '@/lib/blockchain';
+import { isBlockchainConfigured, getDeployerAddress, getWalletBalance } from '@/lib/blockchain';
+import { JsonRpcProvider } from 'ethers';
 
 export async function GET() {
     if (!isBlockchainConfigured()) {
@@ -11,11 +12,20 @@ export async function GET() {
     }
 
     try {
-        const health = await healthCheck();
+        const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://rpc-amoy.polygon.technology';
+        const provider = new JsonRpcProvider(RPC_URL, { name: 'polygon-amoy', chainId: 80002 });
+        const blockNumber = await provider.getBlockNumber();
+        const walletBal = await getWalletBalance();
+
         return NextResponse.json({
             status: 'ok',
             isLive: true,
-            ...health,
+            connected: true,
+            network: 'polygon-amoy',
+            chainId: 80002,
+            blockNumber,
+            deployerAddress: getDeployerAddress(),
+            deployerBalance: walletBal.balanceMatic + ' MATIC',
         });
     } catch (err: any) {
         return NextResponse.json({

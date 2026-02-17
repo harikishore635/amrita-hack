@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         type: 'contribution',
         paymentMethod,
         txHash,
+        employerId: employer?.id || null,
     });
 
     let matchContribution = null;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     const yieldAmt = parseFloat((parseFloat(amount) * 0.001 * (Math.random() * 3 + 1)).toFixed(2));
-    store.addContribution({ userId: auth.userId, amount: yieldAmt, type: 'yield', paymentMethod: 'defi' });
+    store.addContribution({ userId: auth.userId, amount: yieldAmt, type: 'yield', paymentMethod: 'defi', employerId: employer?.id || null });
 
     return NextResponse.json({
         message: 'Contribution successful!',

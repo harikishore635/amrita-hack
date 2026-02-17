@@ -1,8 +1,10 @@
 // ─────────────────────────────────────────────
-// In-Memory Data Store for PensionChain
-// Auto-seeds with demo data on cold start
+// Persistent Data Store for PensionChain
+// Saves to .data/store.json so data survives restarts
 // ─────────────────────────────────────────────
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 export interface User {
     id: string; email: string; password: string; name: string;
@@ -40,6 +42,76 @@ export interface RefToken {
     expiresAt: Date; createdAt: Date;
 }
 
+// ─────────────────────────────────────────────
+// Persistence helpers
+// ─────────────────────────────────────────────
+const DATA_DIR = path.join(process.cwd(), '.data');
+const DATA_FILE = path.join(DATA_DIR, 'store.json');
+
+function ensureDataDir() {
+    try {
+        if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+    } catch { /* ignore in read-only environments */ }
+}
+
+function saveToFile(data: {
+    users: User[];
+    employers: Employer[];
+    contributions: Contribution[];
+    chats: ChatMsg[];
+    tokens: RefToken[];
+    counter: number;
+}) {
+    try {
+        ensureDataDir();
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+        // Silently fail in read-only environments (e.g. serverless)
+        console.warn('[Store] Could not persist data to file:', (err as Error).message);
+    }
+}
+
+function loadFromFile(): {
+    users: User[];
+    employers: Employer[];
+    contributions: Contribution[];
+    chats: ChatMsg[];
+    tokens: RefToken[];
+    counter: number;
+} | null {
+    try {
+        if (!fs.existsSync(DATA_FILE)) return null;
+        const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+        const data = JSON.parse(raw);
+
+        // Rehydrate Date objects from JSON strings
+        const rehydrateDates = (arr: any[], fields: string[]) =>
+            arr.map(item => {
+                const out = { ...item };
+                for (const f of fields) {
+                    if (out[f]) out[f] = new Date(out[f]);
+                }
+                return out;
+            });
+
+        data.users = rehydrateDates(data.users || [], ['createdAt', 'updatedAt']);
+        data.employers = rehydrateDates(data.employers || [], ['createdAt', 'updatedAt']);
+        data.contributions = rehydrateDates(data.contributions || [], ['createdAt']);
+        data.chats = rehydrateDates(data.chats || [], ['createdAt']);
+        data.tokens = rehydrateDates(data.tokens || [], ['expiresAt', 'createdAt']);
+
+        return data;
+    } catch (err) {
+        console.warn('[Store] Could not load data from file:', (err as Error).message);
+        return null;
+    }
+}
+
+// ─────────────────────────────────────────────
+// DataStore class
+// ─────────────────────────────────────────────
 class DataStore {
     users: User[] = [];
     employers: Employer[] = [];
@@ -49,9 +121,41 @@ class DataStore {
     tokens: RefToken[] = [];
     private counter = 0;
     seeded = false;
+    private _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
     uid(): string {
         return `id${++this.counter}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
+    // Debounced persistence — saves at most once every 500ms
+    private _scheduleSave() {
+        if (this._saveTimer) return;
+        this._saveTimer = setTimeout(() => {
+            this._saveTimer = null;
+            saveToFile({
+                users: this.users,
+                employers: this.employers,
+                contributions: this.contributions,
+                chats: this.chats,
+                tokens: this.tokens,
+                counter: this.counter,
+            });
+        }, 500);
+    }
+
+    // Load persisted data (returns true if loaded successfully)
+    loadFromDisk(): boolean {
+        const data = loadFromFile();
+        if (!data || !data.users || data.users.length === 0) return false;
+        this.users = data.users;
+        this.employers = data.employers || [];
+        this.contributions = data.contributions || [];
+        this.chats = data.chats || [];
+        this.tokens = data.tokens || [];
+        this.counter = data.counter || 100;
+        this.seeded = true;
+        console.log(`📂 Store loaded from disk: ${this.users.length} users, ${this.contributions.length} contributions`);
+        return true;
     }
 
     // ── User ──
@@ -69,6 +173,7 @@ class DataStore {
             createdAt: d.createdAt || new Date(), updatedAt: new Date(),
         };
         this.users.push(u);
+        this._scheduleSave();
         return u;
     }
 
@@ -76,6 +181,7 @@ class DataStore {
         const u = this.findUserById(id);
         if (!u) return null;
         Object.assign(u, d, { updatedAt: new Date() });
+        this._scheduleSave();
         return u;
     }
 
@@ -90,6 +196,7 @@ class DataStore {
             createdAt: new Date(), updatedAt: new Date(),
         };
         this.employers.push(e);
+        this._scheduleSave();
         return e;
     }
 
@@ -124,6 +231,7 @@ class DataStore {
             employerId: d.employerId || null, createdAt: d.createdAt || new Date(),
         };
         this.contributions.push(c);
+        this._scheduleSave();
         return c;
     }
 
@@ -147,6 +255,7 @@ class DataStore {
         const userByEmail = this.findUserByEmail(identifier);
         if (userByPhone) userByPhone.phoneVerified = true;
         if (userByEmail) userByEmail.phoneVerified = true;
+        this._scheduleSave();
         return true;
     }
 
@@ -161,6 +270,7 @@ class DataStore {
 
     addChat(userId: string, role: string, content: string, language: string) {
         this.chats.push({ id: this.uid(), userId, role, content, language, createdAt: new Date() });
+        this._scheduleSave();
     }
 
     // ── Refresh Tokens ──
@@ -169,10 +279,14 @@ class DataStore {
             id: this.uid(), token, userId,
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), createdAt: new Date(),
         });
+        this._scheduleSave();
     }
 
     findToken(token: string) { return this.tokens.find(t => t.token === token); }
-    deleteTokensByUser(userId: string) { this.tokens = this.tokens.filter(t => t.userId !== userId); }
+    deleteTokensByUser(userId: string) {
+        this.tokens = this.tokens.filter(t => t.userId !== userId);
+        this._scheduleSave();
+    }
 
     // ── Employees of an employer ──
     getEmployees(employerId: string) {
@@ -235,10 +349,14 @@ class DataStore {
     }
 }
 
-// Global singleton (survives hot reloads in dev, persists in same serverless container)
+// Global singleton (survives hot reloads in dev, persists across restarts via file)
 const g = globalThis as unknown as { __pensionStore: DataStore };
 if (!g.__pensionStore) {
     g.__pensionStore = new DataStore();
-    g.__pensionStore.seed();
+    // Try loading from disk first; if no saved data, seed fresh
+    const loaded = g.__pensionStore.loadFromDisk();
+    if (!loaded) {
+        g.__pensionStore.seed();
+    }
 }
 export const store = g.__pensionStore;

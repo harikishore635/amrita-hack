@@ -156,8 +156,8 @@ export default function ChatPage() {
               <div className={`max-w-[80%]`}>
                 <div
                   className={`rounded-2xl px-5 py-4 ${message.type === 'user'
-                      ? 'bg-amber-500/20 border border-amber-500/30 rounded-tr-sm'
-                      : 'bg-white/5 border border-white/10 rounded-tl-sm'
+                    ? 'bg-amber-500/20 border border-amber-500/30 rounded-tr-sm'
+                    : 'bg-white/5 border border-white/10 rounded-tl-sm'
                     }`}
                 >
                   <p className="text-white leading-relaxed whitespace-pre-wrap">{message.content}</p>
